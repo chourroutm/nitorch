@@ -16,6 +16,7 @@ array"
 ### Session 2026-09-11
 
 - Q: Should a partially-written nifti-zarr store (interrupted conversion, or a chunk file its own manifest references is missing) be caught when the store is loaded, or is it acceptable for it to only surface later, when a user actually reads the specific missing chunk? → A: Load-time validation covers only structural/header validity (is this a recognizable nifti-zarr store at all); a missing or corrupt individual chunk surfaces later, unwrapped, whenever it is actually read — matching the reference `nifti-zarr-py` implementation's own behavior (`zarr2nii`/`dask.array.from_zarr`, which does no eager chunk-existence check and does not wrap downstream zarr/dask errors).
+- Q: How should a plain OME-Zarr store (version 0.4 or 0.5) that has no embedded NIfTI header be handled? → A: Handled the same way `nifti-zarr-py` itself handles it: still loadable, with equivalent header metadata (affine, voxel size, shape) *derived* from the store's own OME-Zarr metadata (`coordinateTransformations` scale/translation per axis, `axes` names/units) rather than requiring an embedded NIfTI header. Only a Zarr store that is neither a nifti-zarr store nor a recognizable OME-Zarr store (no OME multiscale metadata at all) is rejected as unloadable — mirroring `nifti-zarr-py`'s own `default_nifti_header()`/`_ome2affine()` fallback and its one error condition ("this is a Zarr group but not an OME-Zarr").
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -119,7 +120,13 @@ store natively provides.
 ### Edge Cases
 
 - What happens when a nifti-zarr store's NIfTI header metadata is missing,
-  incomplete, or inconsistent with its array's shape/dtype?
+  incomplete, or inconsistent with its array's shape/dtype? (Resolved for
+  the "missing entirely" case: FR-009 — a plain OME-Zarr store with no
+  embedded NIfTI header gets an equivalent header derived from its own
+  OME-Zarr metadata instead. An embedded header that is present but
+  internally inconsistent with the array falls under FR-005's general
+  "not structurally recognizable" error, at the implementer's discretion
+  for how strictly to validate consistency.)
 - What happens when a nifti-zarr store contains multiple resolution levels
   (an OME-Zarr-style multiscale pyramid)? (Resolved: FR-007/FR-008, User
   Story 3 — the finest level is the default, others are fetchable by index,
@@ -142,22 +149,26 @@ store natively provides.
 - **FR-001**: System MUST allow a user to load a nifti-zarr store through
   nitorch's existing, format-agnostic volume-loading interface, without
   requiring a separate, format-specific loading call.
-- **FR-002**: System MUST correctly recognize a valid nifti-zarr store as
-  such (as opposed to a plain NIfTI file or an unrelated Zarr store) when
-  presented to the loading interface.
-- **FR-003**: System MUST expose the store's NIfTI header metadata
-  (orientation matrix, voxel size, data type, and other metadata already
-  exposed for other supported volume formats) after loading.
+- **FR-002**: System MUST correctly recognize a valid nifti-zarr store, or a
+  plain OME-Zarr store carrying its own multiscale metadata, as loadable (as
+  opposed to a plain NIfTI file or a Zarr store with no recognizable
+  spatial-imaging metadata at all) when presented to the loading interface.
+- **FR-003**: System MUST expose header metadata (orientation matrix, voxel
+  size, data type, and other metadata already exposed for other supported
+  volume formats) after loading: read directly from the store's embedded
+  NIfTI header when present, or otherwise derived from the store's OME-Zarr
+  metadata per FR-009.
 - **FR-004**: System MUST expose the store's array data as a chunked, lazily
   evaluated array, such that requesting a sub-region reads only the
   overlapping on-disk chunks rather than the entire array.
 - **FR-005**: System MUST report a clear, actionable error when a path is
-  not a structurally recognizable nifti-zarr store (missing, not a Zarr
-  store, or missing its embedded NIfTI header) at load time, rather than
-  crashing or returning incorrect data. A store that loads successfully but
-  has a missing or corrupt individual chunk is not required to be detected
-  at load time; that failure surfaces later, whenever the affected chunk is
-  actually read (Clarifications, Session 2026-09-11).
+  not a structurally recognizable nifti-zarr *or* OME-Zarr store (missing,
+  not a Zarr store, or a Zarr store with no OME multiscale metadata and no
+  embedded NIfTI header) at load time, rather than crashing or returning
+  incorrect data. A store that loads successfully but has a missing or
+  corrupt individual chunk is not required to be detected at load time;
+  that failure surfaces later, whenever the affected chunk is actually read
+  (Clarifications, Session 2026-09-11).
 - **FR-006**: System MUST leave existing behavior for already-supported
   volume formats (NIfTI, MGH, TIFF, etc.) unchanged.
 - **FR-007**: System MUST allow a user to explicitly fetch a specific
@@ -170,6 +181,13 @@ store natively provides.
   level. For any requested level beyond what the store natively provides,
   System MUST fall back to nitorch's existing downsampling, applied from
   the store's coarsest native level.
+- **FR-009**: When a store has no embedded NIfTI header, System MUST derive
+  equivalent header metadata (orientation matrix, voxel size, shape) from
+  the store's own OME-Zarr metadata (per-axis scale and translation, axis
+  names, and units), using the same derivation approach as the reference
+  `nifti-zarr-py` implementation, rather than requiring every loadable
+  store to carry an embedded NIfTI header (Clarifications, Session
+  2026-09-11).
 
 ### Key Entities
 
@@ -179,7 +197,10 @@ store natively provides.
   local filesystem.
 - **Volume Header Metadata**: The imaging parameters (orientation matrix,
   voxel size, data type) already associated with every loaded volume in
-  nitorch, regardless of source format.
+  nitorch, regardless of source format; for a nifti-zarr store this comes
+  from its embedded NIfTI header, and for a plain OME-Zarr store (no
+  embedded NIfTI header) it is derived from the store's own OME-Zarr
+  metadata instead (FR-009).
 - **Chunked Array**: The lazily evaluated, chunk-addressable representation
   of a nifti-zarr store's data, which can be partially read without loading
   the entire dataset into memory.
@@ -210,6 +231,10 @@ store natively provides.
   requested level it natively provides — verifiable by the data at that
   level matching the store's native data exactly, rather than a downsampled
   approximation of the finest level.
+- **SC-006**: For a plain OME-Zarr store with no embedded NIfTI header, the
+  derived orientation matrix and voxel size read back match what the
+  store's own OME-Zarr metadata (coordinate transformations and axis units)
+  specifies, exactly.
 
 ## Assumptions
 
@@ -232,3 +257,9 @@ store natively provides.
   recognized format alongside existing supported formats, rather than
   requiring the user to specify the format explicitly, consistent with how
   existing formats are already auto-detected.
+- Plain OME-Zarr stores (no embedded NIfTI header) are in scope for reading
+  too, with derived header metadata (FR-009), matching the OME-Zarr
+  versions the reference `nifti-zarr-py` implementation itself supports
+  (0.4 and 0.5); this is a natural extension of the same loading path, not
+  a separate feature, since a nifti-zarr store *is* an OME-Zarr store with
+  an additional embedded NIfTI header.

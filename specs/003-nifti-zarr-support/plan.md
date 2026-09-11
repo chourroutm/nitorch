@@ -19,7 +19,11 @@ multiscale store's finest level is the default and every other native level is
 individually fetchable by explicit index — the same primitive that lets
 `ImagePyramid`'s existing level-construction loop reuse a store's native pyramid levels
 directly during registration ("Integration Point 1"), falling back to nitorch's
-existing downsampling for any level beyond what the store natively provides.
+existing downsampling for any level beyond what the store natively provides. Plain
+OME-Zarr stores with no embedded NIfTI header are also accepted, handled the same way
+the reference `nifti-zarr-py` implementation does: header metadata is derived from the
+store's own OME-Zarr metadata (`coordinateTransformations`/`axes`/`units`) instead of
+requiring an embedded NIfTI header.
 
 ## Technical Context
 
@@ -29,7 +33,7 @@ existing downsampling for any level beyond what the store natively provides.
 **Primary Dependencies**: `zarr` and `dask` (new), added as a new optional extra
 (mirroring the existing `nibabel`/`tiff` extras in `setup.cfg`), not a hard dependency —
 consistent with the project's existing minimal-core/optional-extras convention
-(research.md §3).
+(research.md §4).
 
 **Storage**: N/A beyond the nifti-zarr store itself (a local-filesystem Zarr directory
 store, per spec.md's Assumptions — no remote/cloud store support in this feature).
@@ -68,7 +72,7 @@ Checked against `.specify/memory/constitution.md` v1.0.0:
 
 | Principle | Gate | Status |
 |---|---|---|
-| I. Code Quality | New code follows existing conventions; smallest correct change. | **PASS** — `NiftiZarrArray` follows the exact `MappedArray` subclass + `reader_classes` registration pattern the `babel`/`tiff` backends already use (research.md §1); the registration-pyramid integration reuses `ImagePyramid`'s existing level-construction loop rather than introducing a parallel mechanism (research.md §5). |
+| I. Code Quality | New code follows existing conventions; smallest correct change. | **PASS** — `NiftiZarrArray` follows the exact `MappedArray` subclass + `reader_classes` registration pattern the `babel`/`tiff` backends already use (research.md §1); the registration-pyramid integration reuses `ImagePyramid`'s existing level-construction loop rather than introducing a parallel mechanism (research.md §6). |
 | II. Atomic & Regular Commits (NON-NEGOTIABLE) | Procedural — enforced during implementation (tasks.md). | **N/A at plan stage.** |
 | III. Testing Discipline | Every new feature ships with automated tests; every requirement testable. | **PASS** — `contracts/niftizarr-api.md` §5 defines the required test contract (metadata equivalence, invalid-store error path, lazy-chunk-read verification, level-fetch, registration native-level reuse, and an explicit FR-006 regression guard for every existing format), directly traceable to FR-001–FR-008. |
 
@@ -104,13 +108,16 @@ nitorch/
 │   ├── niftizarr/                    # NEW: nifti-zarr backend package
 │   │   ├── __init__.py               # registers NiftiZarrArray into reader_classes
 │   │   ├── array.py                  # NiftiZarrArray (MappedArray subclass)
-│   │   └── metadata.py               # embedded-NIfTI-header <-> metadata conversion
-│   │                                  # (reuses babel/metadata.py::header_to_metadata)
+│   │   ├── metadata.py               # embedded-NIfTI-header <-> metadata conversion
+│   │   │                              # (reuses babel/metadata.py::header_to_metadata)
+│   │   └── ome_header.py             # NEW: derives header metadata from OME-Zarr
+│   │                                  # coordinateTransformations/axes/units when no
+│   │                                  # embedded NIfTI header is present (research.md §3)
 │   └── readers.py                    # MODIFIED: import niftizarr so it self-registers
 │                                      # (mirrors how babel/tiff already register)
 ├── tools/registration/
 │   └── objects.py                    # MODIFIED: ImagePyramid's level-construction loop
-│                                      # gains the native-level-fetch check (research.md §5)
+│                                      # gains the native-level-fetch check (research.md §6)
 └── io/tests/
     └── test_niftizarr.py             # NEW: contract tests (data-model.md, contracts/)
 ```

@@ -3,7 +3,8 @@
 nitorch's volume I/O is reached through the same format-agnostic entry points for every
 backend, so this feature's "interface contract" is: what a new nifti-zarr backend must
 do to be a conforming `MappedArray`, plus the two additive capabilities (lazy array
-access, level-fetch) this feature introduces.
+access, level-fetch) this feature introduces. The same backend also accepts plain
+OME-Zarr stores with no embedded NIfTI header (FR-009).
 
 ## 1. Format-agnostic loading contract (unchanged call site)
 
@@ -11,15 +12,21 @@ access, level-fetch) this feature introduces.
 from nitorch.io import map, load
 
 vol = map('scan.nii.zarr')     # or load(...) for eager data + affine
+vol2 = map('scan.ome.zarr')    # plain OME-Zarr, no embedded NIfTI header -- also works
 ```
 
 - No new argument, flag, or format-specific function is introduced at this call site
   (FR-001). A `.nii.zarr` (or `.zarr`) path is recognized automatically, the same way
   a `.nii`/`.mgz`/`.tiff` path already is (FR-002).
 - `vol.affine`, `vol.voxel_size`, `vol.dtype`, etc. behave identically to loading the
-  same content's plain NIfTI file (FR-003, SC-003).
-- A path that is not a valid nifti-zarr store raises nitorch's existing "no reader could
-  load this file" error, not a new/different error class (FR-005, SC-004).
+  same content's plain NIfTI file, when an embedded NIfTI header is present (FR-003,
+  SC-003). When it is not present (a plain OME-Zarr store), the same properties are
+  populated from a header *derived* from the store's own OME-Zarr metadata, using the
+  same derivation the reference `nifti-zarr-py` implementation itself uses (FR-009,
+  SC-006).
+- A path that is neither a nifti-zarr store nor a recognizable OME-Zarr store raises
+  nitorch's existing "no reader could load this file" error, not a new/different error
+  class (FR-005, SC-004).
 - Every other already-supported format's behavior through this same entry point is
   unchanged (FR-006) — this is a regression contract, not just a new-feature one.
 
@@ -75,10 +82,15 @@ Principle III):
 
 - Loading a nifti-zarr store through `map()`/`load()` produces header metadata
   byte-for-byte equivalent to loading the same content's plain NIfTI file.
-- Loading a path that is not a structurally recognizable nifti-zarr store
-  (missing, not a Zarr store, or missing its embedded NIfTI header) raises
-  nitorch's existing no-matching-reader error, not a bare/unhandled
-  exception (FR-005/SC-004, Clarifications Session 2026-09-11).
+- Loading a path that is neither a nifti-zarr store nor a recognizable
+  OME-Zarr store (missing, not a Zarr store, or a Zarr store with no OME
+  multiscale metadata and no embedded NIfTI header) raises nitorch's
+  existing no-matching-reader error, not a bare/unhandled exception
+  (FR-005/SC-004, Clarifications Session 2026-09-11).
+- Loading a plain OME-Zarr store (valid multiscale metadata, no embedded
+  NIfTI header) succeeds, with the derived affine/voxel-size matching the
+  store's own `coordinateTransformations`/`axes`/`units` metadata exactly
+  (FR-009, SC-006, Clarifications Session 2026-09-11).
 - Reading a chunk that is missing or corrupt in an otherwise structurally
   valid store is explicitly **not** required to raise a nitorch-specific
   error — whatever `dask`/`zarr` itself raises at `.compute()` time is

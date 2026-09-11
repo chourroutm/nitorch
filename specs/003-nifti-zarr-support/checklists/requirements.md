@@ -58,3 +58,12 @@
   error-wrapping around `dask.array.from_zarr`). FR-005 and SC-004 narrowed
   accordingly; the corresponding Edge Case bullet marked resolved. All
   checklist items re-verified against the updated spec; still 16/16 passing.
+- 2026-09-11 (scope extension): plain OME-Zarr stores (0.4/0.5) with no
+  embedded NIfTI header are now explicitly in scope, handled the same way
+  the reference `nifti-zarr-py` implementation does — header metadata is
+  derived from the store's own OME-Zarr metadata instead of requiring an
+  embedded NIfTI header (verified by reading `_zarr2nii.py`'s
+  `default_nifti_header()`/`_ome2affine()` fallback and its one error
+  condition: a Zarr group with neither OME metadata nor numeric level
+  keys). Added FR-009, SC-006; broadened FR-002/FR-003/FR-005 accordingly.
+  All checklist items re-verified; still 16/16 passing.

@@ -59,6 +59,22 @@ except Exception as e:
     print(e)  # whatever zarr/dask itself raises -- not wrapped by nitorch
 ```
 
+## Scenario 3c — Plain OME-Zarr store with no embedded NIfTI header (FR-009)
+
+```python
+from nitorch.io import map
+
+vol = map('plain.ome.zarr')   # valid OME-Zarr, no embedded NIfTI header
+print(vol.affine, vol.voxel_size)  # derived from coordinateTransformations/axes/units
+```
+
+**Expected outcome**: loads successfully (does not require an embedded NIfTI
+header); the derived affine/voxel-size matches what the store's own OME-Zarr
+metadata specifies, exactly (SC-006) — the same derivation the reference
+`nifti-zarr-py` implementation itself uses (Clarifications, Session
+2026-09-11). A Zarr store with neither an embedded NIfTI header nor
+recognizable OME-Zarr metadata still fails per Scenario 3.
+
 ## Scenario 4 — Fetch a specific resolution level (FR-007)
 
 ```python

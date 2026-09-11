@@ -14,8 +14,8 @@ Lives in a new `nitorch/io/volumes/niftizarr/` package, mirroring the existing
 | Base class | `nitorch.io.volumes.mapping.MappedArray` |
 | Registration | Appended to `nitorch/io/volumes/readers.py::reader_classes`, per the existing pattern |
 | `possible_extensions()` | `('.zarr',)` |
-| `sniff()` | Confirms the store's root metadata carries the nifti-zarr spec's embedded NIfTI-header attribute (distinguishes from a plain/generic Zarr array) |
-| `affine`, `voxel_size`, `dtype`, ... | Populated from the embedded NIfTI header via the existing `babel/metadata.py::header_to_metadata` conversion (research.md §2) |
+| `sniff()` | Confirms the store's root metadata carries either the nifti-zarr spec's embedded NIfTI-header attribute or recognizable OME-Zarr multiscale metadata (distinguishes from a plain/generic Zarr array with neither) |
+| `affine`, `voxel_size`, `dtype`, ... | Populated from the embedded NIfTI header via the existing `babel/metadata.py::header_to_metadata` conversion when present (research.md §2); otherwise **derived** from the store's own OME-Zarr metadata (`coordinateTransformations`/`axes`/`units`), mirroring `nifti-zarr-py`'s `default_nifti_header()`/`_ome2affine()` (research.md §3, FR-009) |
 | `.data()` / `.fdata()` | Existing eager `MappedArray` contract — fulfilled by computing the underlying dask array (FR-006: other formats' behavior, and this format's own base contract, are both preserved) |
 | `.as_dask()` (new, additive) | Returns the lazily evaluated `dask.array.Array` backing this level's data, per FR-004 |
 | Level-fetch capability (new, additive) | Given a multiscale store, exposes the number of native levels and a way to construct a `NiftiZarrArray` bound to a specific level's array path, reusing the same header (FR-007); absent/inapplicable for a single-scale store |
@@ -61,4 +61,4 @@ is obtained, not in the object's shape.
   embedded NIfTI header is read once and reused, not re-parsed per level.
 - `ImagePyramid` **consumes** `NiftiZarrArray`'s level-fetch capability when available
   (FR-008, User Story 3), falling back to its own existing downsampling otherwise —
-  `ImagePyramid` never depends on `NiftiZarrArray` by name (research.md §5).
+  `ImagePyramid` never depends on `NiftiZarrArray` by name (research.md §6).

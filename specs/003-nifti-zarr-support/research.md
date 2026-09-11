@@ -15,12 +15,13 @@
   `nitorch/io/volumes/readers.py::reader_classes`, following the exact registration
   pattern already used by the `babel` (NIfTI/MGH) and `tiff` backends. Implement
   `possible_extensions() -> ('.zarr',)` and `sniff()` to open the store's root metadata
-  and confirm it carries the NIfTI-header attribute the nifti-zarr spec defines,
-  distinguishing it from a plain/generic Zarr array (satisfies FR-002). Constructing the
-  class raises the existing `FailedReadError` convention on anything that isn't a valid
-  nifti-zarr store, which `map()` already treats as "try the next candidate" — and
-  surfaces as nitorch's existing "no reader could load this file" error when no backend
-  matches, satisfying FR-005 without new error-handling machinery.
+  and confirm it carries *either* the nifti-zarr spec's embedded NIfTI-header attribute
+  *or* recognizable OME-Zarr multiscale metadata (§3 below), distinguishing it from a
+  plain/generic Zarr array with neither (satisfies FR-002). Constructing the class
+  raises the existing `FailedReadError` convention on anything with neither, which
+  `map()` already treats as "try the next candidate" — and surfaces as nitorch's
+  existing "no reader could load this file" error when no backend matches, satisfying
+  FR-005 without new error-handling machinery.
 - **Alternatives considered**: A bespoke, format-specific loading function outside the
   `MappedArray` system (rejected — violates FR-001's requirement to use the existing,
   format-agnostic interface, and duplicates dispatch logic that already exists).
@@ -38,9 +39,49 @@
   (`babel/metadata.py::header_to_metadata`) on the header embedded in the nifti-zarr
   store, rather than re-deriving orientation/voxel-size from scratch. This directly
   satisfies SC-003 (byte-for-byte equivalent metadata to the same content's plain NIfTI
-  form) because it is the same conversion code path.
+  form) because it is the same conversion code path. When no embedded header is
+  present, see §3 for the fallback.
 
-## 3. Lazy, chunked array access (FR-004)
+## 3. Plain OME-Zarr stores with no embedded NIfTI header (FR-009)
+
+- **Finding**: Reading `nifti-zarr-py`'s `_zarr2nii.py` directly: when a store is a Zarr
+  group and either isn't recognized as a nifti-zarr store or has no `'nifti'` attribute,
+  it does *not* error — it calls `default_nifti_header(inp0, ome)` to synthesize an
+  equivalent header from the store's own OME-Zarr metadata instead:
+  - **Affine**: `_ome2affine()` reads per-axis scale and translation from
+    `ome[0]["datasets"][level]["coordinateTransformations"]`, converting spatial units to
+    millimeters and temporal units to seconds per each axis's declared `unit`.
+  - **Shape**: OME axis names (`x`, `y`, `z`, `c`, `t`, from `ome[0]["axes"]`) are mapped
+    onto the standard NIfTI axis ordering.
+  - **Header class**: `Nifti2Header` is used instead of `Nifti1Header` when any array
+    dimension exceeds 2^15 (NIfTI-1's dimension field is too narrow otherwise).
+  - **The one error condition**: a `ValueError` ("this is a Zarr group but not an
+    OME-Zarr") is raised only when the store has *neither* OME multiscale metadata *nor*
+    plain numeric level-index keys — i.e. a Zarr array/group with no recognizable
+    spatial-imaging structure of any kind.
+- **Decision**: `NiftiZarrArray` mirrors this exactly: on construction, if no embedded
+  NIfTI header attribute is present, derive equivalent header metadata from the store's
+  own OME-Zarr `coordinateTransformations`/`axes`/`units` metadata using the same
+  affine-construction and header-class-selection logic, rather than requiring every
+  loadable store to carry an embedded NIfTI header. `sniff()`/construction only raises
+  `FailedReadError` (FR-005) when neither an embedded NIfTI header nor recognizable OME
+  multiscale metadata is present — matching `nifti-zarr-py`'s own single error
+  condition.
+- **Rationale**: A nifti-zarr store *is* an OME-Zarr store, with an additional embedded
+  NIfTI header — treating "has an embedded NIfTI header" as an optional refinement
+  rather than a hard requirement for loadability is both what the reference
+  implementation already does and the smallest correct extension of FR-002/FR-003
+  (no new backend, no new dispatch mechanism — just a fallback branch in the same
+  header-construction code path).
+- **Alternatives considered**: Requiring an embedded NIfTI header and rejecting plain
+  OME-Zarr stores (rejected — diverges from the reference implementation's own behavior
+  for no clear benefit, and would reject a large class of otherwise-perfectly-readable
+  neuroimaging-relevant Zarr stores); re-deriving the header via a from-scratch spatial
+  convention instead of mirroring `_ome2affine()`'s exact derivation (rejected — risks
+  producing an affine that doesn't match what `nifti-zarr-py` itself would derive from
+  the same store, breaking SC-006's exactness guarantee).
+
+## 4. Lazy, chunked array access (FR-004)
 
 - **Finding**: No existing nitorch backend returns a lazily evaluated array — every
   current `.data()` implementation eagerly materializes into memory (`mapping.py`'s own
@@ -67,7 +108,7 @@
   dask arrays are what User Story 2's "further slice, compute on, or materialize"
   language calls for).
 
-## 4. Fetching a specific resolution level (FR-007) — "Option A"
+## 5. Fetching a specific resolution level (FR-007) — "Option A"
 
 - **Finding**: `/speckit-clarify`'s multiscale-options.md decided that a multiscale
   nifti-zarr store exposes its finest level by default through the existing loading
@@ -82,7 +123,7 @@
   `MappedArray` contract (and `ImagePyramid`'s default single-array construction path)
   completely unchanged (FR-006).
 
-## 5. Reusing native levels in registration (FR-008, User Story 3) — "Integration Point 1"
+## 6. Reusing native levels in registration (FR-008, User Story 3) — "Integration Point 1"
 
 - **Finding**: `nitorch register`'s `-l/--levels` option
   (`nitorch/cli/registration/register/parser.py`) flows into
