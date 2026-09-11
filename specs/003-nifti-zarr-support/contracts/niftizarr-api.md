@@ -91,13 +91,13 @@ Principle III):
   NIfTI header) succeeds, with the derived affine/voxel-size matching the
   store's own `coordinateTransformations`/`axes`/`units` metadata exactly
   (FR-009, SC-006, Clarifications Session 2026-09-11).
-- Reading a chunk that is missing or corrupt in an otherwise structurally
-  valid store is explicitly **not** required to raise a nitorch-specific
-  error — whatever `dask`/`zarr` itself raises at `.compute()` time is
-  acceptable, matching the reference `nifti-zarr-py` implementation's own
-  behavior (Clarifications Session 2026-09-11). A test for this MUST
-  confirm the failure surfaces at compute time (not at `map()`/`load()`
-  time), not that it is wrapped in any particular exception type.
+- Reading a region backed by a missing chunk in an otherwise structurally
+  valid store is explicitly **not** required to raise any error at all:
+  verified empirically during implementation, Zarr's own default behavior
+  silently returns the array's fill value (typically zero) for a missing
+  chunk's region, rather than raising (Clarifications Session 2026-09-11).
+  A test for this MUST confirm `.compute()` succeeds and returns the fill
+  value for that region, not that an exception of any kind is raised.
 - `.as_dask()` returns an uncomputed array; slicing it before `.compute()` triggers
   reads of only the overlapping chunks (verifiable via a chunk-access counter/mock, or
   by confirming a sub-region read does not require the full store to fit in memory).

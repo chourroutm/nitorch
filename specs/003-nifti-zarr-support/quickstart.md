@@ -44,19 +44,20 @@ except Exception as e:
 ```
 
 **Note** (Clarifications, Session 2026-09-11): this guarantee covers structural
-recognizability only. A store that loads successfully but has a missing or
-corrupt individual chunk is *not* required to fail here — that surfaces later,
-unwrapped, whenever the affected chunk is actually read (see Scenario 3b).
+recognizability only. A store that loads successfully but has one or more
+missing chunks is *not* required to fail at all — see Scenario 3b.
 
-## Scenario 3b — A missing/corrupt chunk surfaces at read time, not load time
+## Scenario 3b — A missing chunk silently reads as zero, not an error
 
 ```python
 vol = map('interrupted_conversion.nii.zarr')  # succeeds: structurally valid
 lazy = vol.as_dask()
-try:
-    lazy[...].compute()   # touches the missing/corrupt chunk
-except Exception as e:
-    print(e)  # whatever zarr/dask itself raises -- not wrapped by nitorch
+region = lazy[...].compute()   # touches the missing chunk's region
+# no exception is raised: per Zarr's own default behavior, the missing
+# chunk's region reads as the array's fill value (typically zero) --
+# verified empirically during implementation. nitorch does not override
+# this default (consistent with Option A: no extra chunk-existence
+# validation cost, whatever Zarr's own native behavior turns out to be).
 ```
 
 ## Scenario 3c — Plain OME-Zarr store with no embedded NIfTI header (FR-009)

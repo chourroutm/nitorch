@@ -15,7 +15,7 @@ array"
 
 ### Session 2026-09-11
 
-- Q: Should a partially-written nifti-zarr store (interrupted conversion, or a chunk file its own manifest references is missing) be caught when the store is loaded, or is it acceptable for it to only surface later, when a user actually reads the specific missing chunk? → A: Load-time validation covers only structural/header validity (is this a recognizable nifti-zarr store at all); a missing or corrupt individual chunk surfaces later, unwrapped, whenever it is actually read — matching the reference `nifti-zarr-py` implementation's own behavior (`zarr2nii`/`dask.array.from_zarr`, which does no eager chunk-existence check and does not wrap downstream zarr/dask errors).
+- Q: Should a partially-written nifti-zarr store (interrupted conversion, or a chunk file its own manifest references is missing) be caught when the store is loaded, or is it acceptable for it to only surface later, when a user actually reads the specific missing chunk? → A: Load-time validation covers only structural/header validity (is this a recognizable nifti-zarr store at all); a missing chunk is not specially detected or reported at all — matching the reference `nifti-zarr-py` implementation's own behavior (`zarr2nii`/`dask.array.from_zarr`, which does no eager chunk-existence check). **Correction, verified empirically during implementation**: Zarr's own default behavior for a missing chunk is to silently return the array's fill value (typically zero) rather than raising an error at all — this is standard, intentional Zarr behavior (sparse arrays), not specific to nitorch. So the realistic consequence of a partially-written store is silently zero-filled data at the missing region, not an exception of any kind. Accepted as-is (Option A's rationale — avoiding the cost of eagerly validating every chunk's existence — implies accepting Zarr's native behavior here too, whatever it turns out to be).
 - Q: How should a plain OME-Zarr store (version 0.4 or 0.5) that has no embedded NIfTI header be handled? → A: Handled the same way `nifti-zarr-py` itself handles it: still loadable, with equivalent header metadata (affine, voxel size, shape) *derived* from the store's own OME-Zarr metadata (`coordinateTransformations` scale/translation per axis, `axes` names/units) rather than requiring an embedded NIfTI header. Only a Zarr store that is neither a nifti-zarr store nor a recognizable OME-Zarr store (no OME multiscale metadata at all) is rejected as unloadable — mirroring `nifti-zarr-py`'s own `default_nifti_header()`/`_ome2affine()` fallback and its one error condition ("this is a Zarr group but not an OME-Zarr").
 
 ## User Scenarios & Testing *(mandatory)*
@@ -134,9 +134,10 @@ store natively provides.
 - What happens when a nifti-zarr store is only partially written (e.g. an
   interrupted conversion), or a chunk file referenced by its metadata is
   missing? (Resolved: FR-005/SC-004 — this is only guaranteed to be caught
-  at load time if it makes the store structurally unrecognizable; a
-  missing/corrupt individual chunk in an otherwise-valid store surfaces
-  later, unwrapped, when that chunk is actually read.)
+  at load time if it makes the store structurally unrecognizable. A missing
+  chunk in an otherwise-valid store is not detected or reported at all:
+  Zarr's own default behavior silently returns the fill value, typically
+  zero, for that region rather than raising an error.)
 - What happens when a user attempts to write/save to a nifti-zarr store
   rather than only reading one? (Resolved: relies on existing `MappedArray`
   framework behavior — any backend that doesn't implement `set_data()`/
@@ -171,10 +172,11 @@ store natively provides.
   not a structurally recognizable nifti-zarr *or* OME-Zarr store (missing,
   not a Zarr store, or a Zarr store with no OME multiscale metadata and no
   embedded NIfTI header) at load time, rather than crashing or returning
-  incorrect data. A store that loads successfully but has a missing or
-  corrupt individual chunk is not required to be detected at load time;
-  that failure surfaces later, whenever the affected chunk is actually read
-  (Clarifications, Session 2026-09-11).
+  incorrect data. A store that loads successfully but has one or more
+  missing chunks is explicitly not covered by this requirement: per Zarr's
+  own default behavior, a missing chunk silently reads as the array's fill
+  value (typically zero) rather than raising any error (Clarifications,
+  Session 2026-09-11).
 - **FR-006**: System MUST leave existing behavior for already-supported
   volume formats (NIfTI, MGH, TIFF, etc.) unchanged.
 - **FR-007**: System MUST allow a user to explicitly fetch a specific
@@ -230,8 +232,10 @@ store natively provides.
 - **SC-004**: Attempting to load a path that is not a structurally
   recognizable nifti-zarr store produces a descriptive error in 100% of
   attempts, rather than a crash or silently incorrect data. (A store that
-  loads successfully but has a missing/corrupt individual chunk is exempt
-  from this guarantee — see Clarifications, Session 2026-09-11.)
+  loads successfully but has one or more missing chunks is exempt from this
+  guarantee: Zarr's own default behavior silently returns the fill value —
+  typically zero — for a missing chunk, with no error at all; see
+  Clarifications, Session 2026-09-11.)
 - **SC-005**: Registering with a specific set of resolution levels against a
   multiscale nifti-zarr store uses the store's own native data for every
   requested level it natively provides — verifiable by the data at that
