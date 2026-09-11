@@ -118,8 +118,10 @@ nitorch/
 ├── tools/registration/
 │   └── objects.py                    # MODIFIED: ImagePyramid's level-construction loop
 │                                      # gains the native-level-fetch check (research.md §6)
-└── io/tests/
-    └── test_niftizarr.py             # NEW: contract tests (data-model.md, contracts/)
+├── io/tests/
+│   └── test_niftizarr.py             # NEW: IO-layer contract tests (US1, US2; data-model.md, contracts/)
+└── tests/
+    └── test_niftizarr_registration.py  # NEW: ImagePyramid/registration integration tests (US3)
 ```
 
 **Not touched**: `nitorch/io/volumes/mapping.py` (`MappedArray`'s shared base contract
