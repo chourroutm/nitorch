@@ -138,9 +138,15 @@ store natively provides.
   missing/corrupt individual chunk in an otherwise-valid store surfaces
   later, unwrapped, when that chunk is actually read.)
 - What happens when a user attempts to write/save to a nifti-zarr store
-  rather than only reading one?
+  rather than only reading one? (Resolved: relies on existing `MappedArray`
+  framework behavior — any backend that doesn't implement `set_data()`/
+  `set_metadata()`/`save_new()` already raises `FailedWriteError` by
+  default; no new FR needed since writing is out of scope, per Assumptions.)
 - What happens when the same file path could plausibly be matched by more
-  than one registered volume reader (format ambiguity)?
+  than one registered volume reader (format ambiguity)? (Resolved: relies
+  on `nitorch.io.map()`'s existing multi-candidate dispatch — it already
+  tries each matching reader in order and falls through on failure; no new
+  FR needed.)
 
 ## Requirements *(mandatory)*
 

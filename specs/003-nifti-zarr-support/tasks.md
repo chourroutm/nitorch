@@ -31,7 +31,7 @@ Structure, not placeholders.
 **Purpose**: Create the new package skeleton and dependency extra this feature adds.
 
 - [ ] T001 Create the `nitorch/io/volumes/zarr/` package skeleton: `__init__.py`, `array.py`, `metadata.py`, and `ome_header.py` as empty/stub modules.
-- [ ] T002 [P] Add a new `zarr` extra (`zarr`, `dask`) to `nitorch/../setup.cfg`'s `[options.extras_require]`, and include it in the aggregate `io`/`all` extras, mirroring the existing `nibabel`/`tiff` extras (research.md §4).
+- [ ] T002 [P] Add a new `zarr` extra (`zarr`, `dask`) to `setup.cfg`'s (repo root) `[options.extras_require]`, and include it in the aggregate `io`/`all` extras, mirroring the existing `nibabel`/`tiff` extras (research.md §4).
 
 **Checkpoint**: Package structure and dependency extra exist; no existing extra modified.
 

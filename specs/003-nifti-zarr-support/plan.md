@@ -74,7 +74,7 @@ Checked against `.specify/memory/constitution.md` v1.0.0:
 |---|---|---|
 | I. Code Quality | New code follows existing conventions; smallest correct change. | **PASS** — `NiftiZarrArray` follows the exact `MappedArray` subclass + `reader_classes` registration pattern the `babel`/`tiff` backends already use (research.md §1); the registration-pyramid integration reuses `ImagePyramid`'s existing level-construction loop rather than introducing a parallel mechanism (research.md §6). |
 | II. Atomic & Regular Commits (NON-NEGOTIABLE) | Procedural — enforced during implementation (tasks.md). | **N/A at plan stage.** |
-| III. Testing Discipline | Every new feature ships with automated tests; every requirement testable. | **PASS** — `contracts/niftizarr-api.md` §5 defines the required test contract (metadata equivalence, invalid-store error path, lazy-chunk-read verification, level-fetch, registration native-level reuse, and an explicit FR-006 regression guard for every existing format), directly traceable to FR-001–FR-008. |
+| III. Testing Discipline | Every new feature ships with automated tests; every requirement testable. | **PASS** — `contracts/niftizarr-api.md` §5 defines the required test contract (metadata equivalence, invalid-store error path, OME-Zarr-derived-header verification, lazy-chunk-read verification, level-fetch, registration native-level reuse, and an explicit FR-006 regression guard for every existing format), directly traceable to FR-001–FR-009. |
 
 No violations requiring justification — Complexity Tracking table below is empty.
 
@@ -105,7 +105,7 @@ specs/003-nifti-zarr-support/
 ```text
 nitorch/
 ├── io/volumes/
-│   ├── niftizarr/                    # NEW: nifti-zarr backend package
+│   ├── zarr/                         # NEW: nifti-zarr backend package
 │   │   ├── __init__.py               # registers NiftiZarrArray into reader_classes
 │   │   ├── array.py                  # NiftiZarrArray (MappedArray subclass)
 │   │   ├── metadata.py               # embedded-NIfTI-header <-> metadata conversion
