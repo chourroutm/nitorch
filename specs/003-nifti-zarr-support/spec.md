@@ -74,12 +74,50 @@ rather than the entire array.
 
 ---
 
+### User Story 3 - Reuse a nifti-zarr store's native pyramid during registration (Priority: P3)
+
+As a user registering two images with nitorch, where one or both are
+nifti-zarr stores containing a precomputed multiscale pyramid, I want
+selecting registration resolution levels to reuse the store's own
+already-built levels, so that I get the accuracy and speed benefit of a
+purpose-built pyramid instead of nitorch re-deriving a coarser version from
+the finest level every time.
+
+**Why this priority**: This is a concrete payoff of nifti-zarr's multiscale
+structure, but it only matters once a store can be loaded (User Story 1)
+and its levels can be individually accessed (User Story 2's chunked-access
+capability, extended here to non-finest levels) — a coarse-to-fine
+capability nitorch's registration tooling already has a notion of.
+
+**Independent Test**: Can be fully tested by registering using a
+multiscale nifti-zarr store with a specific set of resolution levels
+requested, and confirming that the data used at each requested level
+matches the store's own native data for that level, for every level the
+store natively provides.
+
+**Acceptance Scenarios**:
+
+1. **Given** a multiscale nifti-zarr store and a registration resolution
+   level that the store natively provides, **When** a user selects that
+   level for registration, **Then** the store's own native data for that
+   level is used, rather than data derived by downsampling the finest
+   level.
+2. **Given** a multiscale nifti-zarr store and a registration resolution
+   level beyond what the store natively provides, **When** a user selects
+   that level for registration, **Then** nitorch derives it by downsampling
+   further from the store's coarsest native level, consistent with how
+   registration resolution levels are already derived for other formats.
+
+---
+
 ### Edge Cases
 
 - What happens when a nifti-zarr store's NIfTI header metadata is missing,
   incomplete, or inconsistent with its array's shape/dtype?
 - What happens when a nifti-zarr store contains multiple resolution levels
-  (an OME-Zarr-style multiscale pyramid)?
+  (an OME-Zarr-style multiscale pyramid)? (Resolved: FR-007/FR-008, User
+  Story 3 — the finest level is the default, others are fetchable by index,
+  and registration reuses native levels where available.)
 - What happens when a nifti-zarr store is only partially written (e.g. an
   interrupted conversion), or a chunk file referenced by its metadata is
   missing?
@@ -109,6 +147,16 @@ rather than the entire array.
   store), rather than crashing or returning incorrect data.
 - **FR-006**: System MUST leave existing behavior for already-supported
   volume formats (NIfTI, MGH, TIFF, etc.) unchanged.
+- **FR-007**: System MUST allow a user to explicitly fetch a specific
+  resolution level of a multiscale nifti-zarr store by index, in addition
+  to the finest level being accessible by default (FR-003/FR-004).
+- **FR-008**: When registering images with nitorch's registration tooling,
+  System MUST use a multiscale nifti-zarr store's native resolution data
+  (via FR-007) for any requested registration level the store natively
+  provides, instead of deriving that level by downsampling the finest
+  level. For any requested level beyond what the store natively provides,
+  System MUST fall back to nitorch's existing downsampling, applied from
+  the store's coarsest native level.
 
 ### Key Entities
 
@@ -122,6 +170,9 @@ rather than the entire array.
 - **Chunked Array**: The lazily evaluated, chunk-addressable representation
   of a nifti-zarr store's data, which can be partially read without loading
   the entire dataset into memory.
+- **Resolution Level**: One entry in a multiscale nifti-zarr store's
+  precomputed pyramid; the finest level is accessible by default, and any
+  other level is individually fetchable by index (FR-007).
 
 ## Success Criteria *(mandatory)*
 
@@ -139,6 +190,11 @@ rather than the entire array.
 - **SC-004**: Attempting to load an invalid or incomplete nifti-zarr store
   produces a descriptive error in 100% of attempts, rather than a crash or
   silently incorrect data.
+- **SC-005**: Registering with a specific set of resolution levels against a
+  multiscale nifti-zarr store uses the store's own native data for every
+  requested level it natively provides — verifiable by the data at that
+  level matching the store's native data exactly, rather than a downsampled
+  approximation of the finest level.
 
 ## Assumptions
 
@@ -148,14 +204,15 @@ rather than the entire array.
   network access.
 - Only reading is in scope; writing/saving a nitorch volume out to a
   nifti-zarr store is out of scope for this feature.
-- How a nifti-zarr store's multiple resolution levels (a multiscale pyramid)
-  are exposed is an **open decision, deferred for discussion before
-  planning** rather than assumed — see
-  [multiscale-options.md](./multiscale-options.md) for the options
-  considered (finest-level-by-default with opt-in access to others; or
-  exposing all levels at once, mirroring nitorch's existing `ImagePyramid`
-  concept). At minimum, the finest level MUST be exposed per FR-003/FR-004
-  regardless of which option is chosen for the others.
+- **Decided** (see [multiscale-options.md](./multiscale-options.md) for the
+  full discussion): a multiscale nifti-zarr store's resolution levels are
+  exposed as the finest level by default through the existing loading
+  interface (FR-003/FR-004), with any other level individually fetchable by
+  explicit index (FR-007) — "Option A" in that discussion — rather than all
+  levels being returned together as a single collection. This primitive is
+  also what lets nitorch's registration tooling reuse a store's native
+  pyramid levels directly (FR-008/User Story 3, "Integration Point 1" in
+  that discussion) without a mismatched interface shape.
 - Loading a nifti-zarr store is offered as an additional, automatically
   recognized format alongside existing supported formats, rather than
   requiring the user to specify the format explicitly, consistent with how

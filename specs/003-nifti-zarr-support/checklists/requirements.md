@@ -42,8 +42,10 @@
   as "chunked, lazily evaluated array" in the spec to keep the specification
   technology-agnostic; the specific library choice is a planning-phase decision.
 - 2026-09-08: the original "finest-resolution-only" assumption for multiscale
-  pyramid handling was rejected and is now an explicitly open decision, deferred
-  for discussion before `/speckit-plan` — see multiscale-options.md. This does
-  not reopen any checklist item: the minimum guaranteed behavior (finest level
-  exposed) remains bounded and testable via FR-003/FR-004 regardless of how the
-  broader multiscale question is eventually resolved.
+  pyramid handling was rejected and deferred for discussion — see
+  multiscale-options.md.
+- 2026-09-11: multiscale handling decided (Option A + Integration Point 1, see
+  multiscale-options.md). Spec updated: FR-007/FR-008, SC-005, User Story 3, and
+  the Resolution Level entity added; the Assumptions bullet now states the
+  decided behavior instead of noting it as deferred. All checklist items
+  re-verified against the updated spec; still 16/16 passing.

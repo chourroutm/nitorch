@@ -1,6 +1,8 @@
 # Discussion: Handling Multiscale NIfTI-Zarr Stores
 
-**Status**: Open — pending discussion before `/speckit-plan`
+**Status**: Decided — Option A, with Integration Point 1 for the
+registration-pyramid use case (see spec.md's Assumptions, FR-007/FR-008,
+and User Story 3).
 **Feature**: [spec.md](./spec.md)
 **Context**: A nifti-zarr store may contain an OME-Zarr-style multiscale
 pyramid (multiple resolution levels of the same volume). The spec's original
