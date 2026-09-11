@@ -142,10 +142,10 @@ store's own native data for that level (spec.md US3 Acceptance Scenario 1).
 
 **Purpose**: Documentation and final regression validation across all stories.
 
-- [ ] T029 [P] Add/verify docstrings for `NiftiZarrArray`, `.as_dask()`, and the level-fetch method in `nitorch/io/volumes/zarr/array.py`, describing shapes/dtypes/behavior per Constitution Principle I.
-- [ ] T030 [P] Document the new `zarr` extra alongside the existing `nibabel`/`tiff` extras documentation (README or equivalent install docs).
-- [ ] T031 Walk through all of quickstart.md's scenarios (1, 2, 3, 3b, 3c, 4, 5, 6) end-to-end as a final combined validation.
-- [ ] T032 Run the full existing nitorch test suite (`nitorch/tests/`, `nitorch/io/tests/`) and confirm zero new failures, as the final check for FR-006.
+- [X] T029 [P] Add/verify docstrings for `NiftiZarrArray`, `.as_dask()`, and the level-fetch method in `nitorch/io/volumes/zarr/array.py`, describing shapes/dtypes/behavior per Constitution Principle I.
+- [X] T030 [P] Document the new `zarr` extra alongside the existing `nibabel`/`tiff` extras documentation (README or equivalent install docs).
+- [X] T031 Walk through all of quickstart.md's scenarios (1, 2, 3, 3b, 3c, 4, 5, 6) end-to-end as a final combined validation.
+- [X] T032 Run the full existing nitorch test suite (`nitorch/tests/`, `nitorch/io/tests/`) and confirm zero new failures, as the final check for FR-006. Result: 1242 passed, 2 failed (`test_babel.py::test_nifti`, `test_babel.py::test_mgh` — pre-existing, unrelated to this feature: nibabel API drift and a network-dependent fixture 404, confirmed via `git stash` earlier in this session), 0 new regressions. All 13 new nifti-zarr tests pass.
 
 ---
 
