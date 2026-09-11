@@ -11,6 +11,12 @@
 nitorch/io/volumes to read these with a nifti header and an array as a dask
 array"
 
+## Clarifications
+
+### Session 2026-09-11
+
+- Q: Should a partially-written nifti-zarr store (interrupted conversion, or a chunk file its own manifest references is missing) be caught when the store is loaded, or is it acceptable for it to only surface later, when a user actually reads the specific missing chunk? → A: Load-time validation covers only structural/header validity (is this a recognizable nifti-zarr store at all); a missing or corrupt individual chunk surfaces later, unwrapped, whenever it is actually read — matching the reference `nifti-zarr-py` implementation's own behavior (`zarr2nii`/`dask.array.from_zarr`, which does no eager chunk-existence check and does not wrap downstream zarr/dask errors).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Load a nifti-zarr volume through the existing loading interface (Priority: P1)
@@ -120,7 +126,10 @@ store natively provides.
   and registration reuses native levels where available.)
 - What happens when a nifti-zarr store is only partially written (e.g. an
   interrupted conversion), or a chunk file referenced by its metadata is
-  missing?
+  missing? (Resolved: FR-005/SC-004 — this is only guaranteed to be caught
+  at load time if it makes the store structurally unrecognizable; a
+  missing/corrupt individual chunk in an otherwise-valid store surfaces
+  later, unwrapped, when that chunk is actually read.)
 - What happens when a user attempts to write/save to a nifti-zarr store
   rather than only reading one?
 - What happens when the same file path could plausibly be matched by more
@@ -142,9 +151,13 @@ store natively provides.
 - **FR-004**: System MUST expose the store's array data as a chunked, lazily
   evaluated array, such that requesting a sub-region reads only the
   overlapping on-disk chunks rather than the entire array.
-- **FR-005**: System MUST report a clear, actionable error when a path
-  cannot be loaded as a nifti-zarr store (missing, invalid, or corrupt
-  store), rather than crashing or returning incorrect data.
+- **FR-005**: System MUST report a clear, actionable error when a path is
+  not a structurally recognizable nifti-zarr store (missing, not a Zarr
+  store, or missing its embedded NIfTI header) at load time, rather than
+  crashing or returning incorrect data. A store that loads successfully but
+  has a missing or corrupt individual chunk is not required to be detected
+  at load time; that failure surfaces later, whenever the affected chunk is
+  actually read (Clarifications, Session 2026-09-11).
 - **FR-006**: System MUST leave existing behavior for already-supported
   volume formats (NIfTI, MGH, TIFF, etc.) unchanged.
 - **FR-007**: System MUST allow a user to explicitly fetch a specific
@@ -187,9 +200,11 @@ store natively provides.
 - **SC-003**: For a nifti-zarr store produced from a given NIfTI file, the
   orientation matrix, voxel size, and data type read back from the
   nifti-zarr store match those of the original NIfTI file exactly.
-- **SC-004**: Attempting to load an invalid or incomplete nifti-zarr store
-  produces a descriptive error in 100% of attempts, rather than a crash or
-  silently incorrect data.
+- **SC-004**: Attempting to load a path that is not a structurally
+  recognizable nifti-zarr store produces a descriptive error in 100% of
+  attempts, rather than a crash or silently incorrect data. (A store that
+  loads successfully but has a missing/corrupt individual chunk is exempt
+  from this guarantee — see Clarifications, Session 2026-09-11.)
 - **SC-005**: Registering with a specific set of resolution levels against a
   multiscale nifti-zarr store uses the store's own native data for every
   requested level it natively provides — verifiable by the data at that

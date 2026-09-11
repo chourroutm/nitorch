@@ -32,15 +32,31 @@ sub = lazy[64:128, 64:128, :].compute()
 **Expected outcome**: only the chunks overlapping the requested sub-region are read;
 this completes even for a store much larger than available memory (FR-004, SC-002).
 
-## Scenario 3 — Missing/invalid store produces a clear error (FR-005)
+## Scenario 3 — A structurally invalid store produces a clear error at load time (FR-005)
 
 ```python
 from nitorch.io import map
 
 try:
-    map('not_a_store.nii.zarr')
+    map('not_a_store.nii.zarr')   # missing, not a Zarr store, or no embedded NIfTI header
 except Exception as e:
     print(e)  # nitorch's existing "no reader could load this file" error
+```
+
+**Note** (Clarifications, Session 2026-09-11): this guarantee covers structural
+recognizability only. A store that loads successfully but has a missing or
+corrupt individual chunk is *not* required to fail here — that surfaces later,
+unwrapped, whenever the affected chunk is actually read (see Scenario 3b).
+
+## Scenario 3b — A missing/corrupt chunk surfaces at read time, not load time
+
+```python
+vol = map('interrupted_conversion.nii.zarr')  # succeeds: structurally valid
+lazy = vol.as_dask()
+try:
+    lazy[...].compute()   # touches the missing/corrupt chunk
+except Exception as e:
+    print(e)  # whatever zarr/dask itself raises -- not wrapped by nitorch
 ```
 
 ## Scenario 4 — Fetch a specific resolution level (FR-007)

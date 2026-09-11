@@ -49,3 +49,12 @@
   the Resolution Level entity added; the Assumptions bullet now states the
   decided behavior instead of noting it as deferred. All checklist items
   re-verified against the updated spec; still 16/16 passing.
+- 2026-09-11 (formal `/speckit-clarify` session): resolved the FR-004
+  (laziness) vs. SC-004 ("detected when loading") tension for partially-written
+  stores. Decision: load-time validation covers structural recognizability
+  only; a missing/corrupt individual chunk surfaces later, unwrapped, when
+  read — matching the reference `nifti-zarr-py` implementation's own behavior
+  (verified by reading `_zarr2nii.py`: no eager chunk-existence check, no
+  error-wrapping around `dask.array.from_zarr`). FR-005 and SC-004 narrowed
+  accordingly; the corresponding Edge Case bullet marked resolved. All
+  checklist items re-verified against the updated spec; still 16/16 passing.

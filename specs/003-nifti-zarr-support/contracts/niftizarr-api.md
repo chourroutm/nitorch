@@ -75,8 +75,17 @@ Principle III):
 
 - Loading a nifti-zarr store through `map()`/`load()` produces header metadata
   byte-for-byte equivalent to loading the same content's plain NIfTI file.
-- Loading an invalid/incomplete nifti-zarr store raises nitorch's existing
-  no-matching-reader error, not a bare/unhandled exception.
+- Loading a path that is not a structurally recognizable nifti-zarr store
+  (missing, not a Zarr store, or missing its embedded NIfTI header) raises
+  nitorch's existing no-matching-reader error, not a bare/unhandled
+  exception (FR-005/SC-004, Clarifications Session 2026-09-11).
+- Reading a chunk that is missing or corrupt in an otherwise structurally
+  valid store is explicitly **not** required to raise a nitorch-specific
+  error — whatever `dask`/`zarr` itself raises at `.compute()` time is
+  acceptable, matching the reference `nifti-zarr-py` implementation's own
+  behavior (Clarifications Session 2026-09-11). A test for this MUST
+  confirm the failure surfaces at compute time (not at `map()`/`load()`
+  time), not that it is wrapped in any particular exception type.
 - `.as_dask()` returns an uncomputed array; slicing it before `.compute()` triggers
   reads of only the overlapping chunks (verifiable via a chunk-access counter/mock, or
   by confirming a sub-region read does not require the full store to fit in memory).
