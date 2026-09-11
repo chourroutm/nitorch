@@ -113,8 +113,12 @@ nitorch/
 │   │   └── ome_header.py             # NEW: derives header metadata from OME-Zarr
 │   │                                  # coordinateTransformations/axes/units when no
 │   │                                  # embedded NIfTI header is present (research.md §3)
-│   └── readers.py                    # MODIFIED: import the new zarr backend package
-│                                      # so it self-registers (mirrors how babel/tiff already register)
+│   └── __init__.py                   # MODIFIED: conditional `from .zarr import NiftiZarrArray`
+│                                      # gated on optionals.zarr/optionals.dask (mirrors
+│                                      # the existing babel/tiff conditional imports)
+├── io/
+│   └── optionals.py                  # MODIFIED: add zarr/dask availability checks
+│                                      # (mirrors the existing nibabel/tifffile checks)
 ├── tools/registration/
 │   └── objects.py                    # MODIFIED: ImagePyramid's level-construction loop
 │                                      # gains the native-level-fetch check (research.md §6)

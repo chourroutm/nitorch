@@ -30,8 +30,8 @@ Structure, not placeholders.
 
 **Purpose**: Create the new package skeleton and dependency extra this feature adds.
 
-- [ ] T001 Create the `nitorch/io/volumes/zarr/` package skeleton: `__init__.py`, `array.py`, `metadata.py`, and `ome_header.py` as empty/stub modules.
-- [ ] T002 [P] Add a new `zarr` extra (`zarr`, `dask`) to `setup.cfg`'s (repo root) `[options.extras_require]`, and include it in the aggregate `io`/`all` extras, mirroring the existing `nibabel`/`tiff` extras (research.md §4).
+- [X] T001 Create the `nitorch/io/volumes/zarr/` package skeleton: `__init__.py`, `array.py`, `metadata.py`, and `ome_header.py` as empty/stub modules.
+- [X] T002 [P] Add a new `zarr` extra (`zarr`, `dask`) to `setup.cfg`'s (repo root) `[options.extras_require]`, and include it in the aggregate `io`/`all` extras, mirroring the existing `nibabel`/`tiff` extras (research.md §4).
 
 **Checkpoint**: Package structure and dependency extra exist; no existing extra modified.
 
@@ -44,14 +44,14 @@ exposes its header metadata — embedded or OME-derived — that every user stor
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T003 Implement store-opening and metadata detection in `nitorch/io/volumes/zarr/array.py`: open the Zarr group/array at a given path and parse its root/group-level attributes to locate (a) an embedded NIfTI header attribute if present, and (b) OME multiscale metadata (`multiscales`/`ome` key) if present (research.md §1).
-- [ ] T004 Implement `NiftiZarrArray.possible_extensions()` (`('.zarr',)`) and `.sniff()` in `array.py`, using T003: recognized if either an embedded NIfTI header or OME multiscale metadata is present (FR-002, research.md §1). Depends on T003.
-- [ ] T005 Register `NiftiZarrArray` into `nitorch/io/volumes/readers.py::reader_classes` in `nitorch/io/volumes/zarr/__init__.py`, mirroring how `babel`/`tiff` self-register (research.md §1).
-- [ ] T006 [P] Implement embedded-NIfTI-header metadata population in `nitorch/io/volumes/zarr/metadata.py`, reusing `babel/metadata.py::header_to_metadata` on the header embedded in the store (FR-003, research.md §2).
-- [ ] T007 [P] Implement the OME-Zarr-derived header fallback in `nitorch/io/volumes/zarr/ome_header.py`: per-axis scale/translation from `coordinateTransformations` to an affine (unit-converted to mm/s), OME axis names mapped to the standard shape ordering, and `Nifti1Header`/`Nifti2Header` selection based on whether any dimension exceeds 2^15 — mirroring `nifti-zarr-py`'s `default_nifti_header()`/`_ome2affine()` exactly (FR-009, research.md §3).
-- [ ] T008 Wire T006/T007 into `NiftiZarrArray.__init__`/`affine`/`voxel_size`/`dtype` in `array.py`: use the embedded header (T006) when present, otherwise the OME-derived header (T007) (FR-003, FR-009). Depends on T003, T006, T007.
-- [ ] T009 Implement `FailedReadError` raising in `NiftiZarrArray.__init__` (`array.py`) when neither an embedded NIfTI header nor recognizable OME multiscale metadata is found (FR-005, data-model.md validation rules). Depends on T003.
-- [ ] T010 Implement `.data()`/`.fdata()` on `NiftiZarrArray` in `array.py`, eagerly computing the store's zarr array so it fulfills the existing `MappedArray` contract and is usable anywhere any other backend already is (FR-006). Depends on T003.
+- [X] T003 Implement store-opening and metadata detection in `nitorch/io/volumes/zarr/array.py`: open the Zarr group/array at a given path and parse its root/group-level attributes to locate (a) an embedded NIfTI header attribute if present, and (b) OME multiscale metadata (`multiscales`/`ome` key) if present (research.md §1).
+- [X] T004 Implement `NiftiZarrArray.possible_extensions()` (`('.zarr',)`) and `.sniff()` in `array.py`, using T003: recognized if either an embedded NIfTI header or OME multiscale metadata is present (FR-002, research.md §1). Depends on T003.
+- [X] T005 Register `NiftiZarrArray`: append it to `reader_classes` at the end of `array.py` (mirroring `babel/array.py`/`tiff/array.py`'s own `reader_classes.append(...)` pattern exactly); add `zarr`/`dask` availability checks to `nitorch/io/optionals.py` (mirroring the existing `nibabel`/`tifffile` checks); add a conditional `from .zarr import NiftiZarrArray` to `nitorch/io/volumes/__init__.py`, gated on `optionals.zarr and optionals.dask` (mirrors the existing `babel`/`tiff` conditional imports) (research.md §1).
+- [X] T006 [P] Implement embedded-NIfTI-header metadata population in `nitorch/io/volumes/zarr/metadata.py`, reusing `babel/metadata.py::header_to_metadata` on the header embedded in the store (FR-003, research.md §2).
+- [X] T007 [P] Implement the OME-Zarr-derived header fallback in `nitorch/io/volumes/zarr/ome_header.py`: per-axis scale/translation from `coordinateTransformations` to an affine (unit-converted to mm/s), OME axis names mapped to the standard shape ordering, and `Nifti1Header`/`Nifti2Header` selection based on whether any dimension exceeds 2^15 — mirroring `nifti-zarr-py`'s `default_nifti_header()`/`_ome2affine()` exactly (FR-009, research.md §3).
+- [X] T008 Wire T006/T007 into `NiftiZarrArray.__init__`/`affine`/`voxel_size`/`dtype` in `array.py`: use the embedded header (T006) when present, otherwise the OME-derived header (T007) (FR-003, FR-009). Depends on T003, T006, T007.
+- [X] T009 Implement `FailedReadError` raising in `NiftiZarrArray.__init__` (`array.py`) when neither an embedded NIfTI header nor recognizable OME multiscale metadata is found (FR-005, data-model.md validation rules). Depends on T003.
+- [X] T010 Implement `.data()`/`.fdata()` on `NiftiZarrArray` in `array.py`, eagerly computing the store's zarr array so it fulfills the existing `MappedArray` contract and is usable anywhere any other backend already is (FR-006). Depends on T003.
 
 **Checkpoint**: `NiftiZarrArray` can be constructed from a valid nifti-zarr or plain OME-Zarr store and exposes correct header metadata; an unrecognizable path raises the expected error.
 
@@ -73,14 +73,14 @@ of the same content would (spec.md US1 Acceptance Scenario 1).
 > complete, but confirm the end-to-end `map()`/`load()` path, not just `NiftiZarrArray`
 > in isolation.
 
-- [ ] T011 [P] [US1] Test that `nitorch.io.map()`/`load()` on a nifti-zarr store (embedded header) produces header metadata byte-for-byte equivalent to loading the same content's plain NIfTI file, in `nitorch/io/tests/test_niftizarr.py` (SC-001, SC-003, contracts §1, quickstart Scenario 1).
-- [ ] T012 [P] [US1] Test that `map()` on a plain OME-Zarr store (no embedded header) succeeds, with derived affine/voxel-size matching the store's own OME-Zarr metadata exactly, in `nitorch/io/tests/test_niftizarr.py` (FR-009, SC-006, quickstart Scenario 3c).
-- [ ] T013 [P] [US1] Test that `map()` on a path that is neither a nifti-zarr store nor a recognizable OME-Zarr store raises nitorch's existing no-matching-reader error, in `nitorch/io/tests/test_niftizarr.py` (FR-005, SC-004, quickstart Scenario 3).
-- [ ] T014 [P] [US1] Regression test that loading existing NIfTI/MGH/TIFF files through `map()`/`load()` is unchanged, in `nitorch/io/tests/test_niftizarr.py` (FR-006).
+- [X] T011 [P] [US1] Test that `nitorch.io.map()`/`load()` on a nifti-zarr store (embedded header) produces header metadata byte-for-byte equivalent to loading the same content's plain NIfTI file, in `nitorch/io/tests/test_niftizarr.py` (SC-001, SC-003, contracts §1, quickstart Scenario 1).
+- [X] T012 [P] [US1] Test that `map()` on a plain OME-Zarr store (no embedded header) succeeds, with derived affine/voxel-size matching the store's own OME-Zarr metadata exactly, in `nitorch/io/tests/test_niftizarr.py` (FR-009, SC-006, quickstart Scenario 3c).
+- [X] T013 [P] [US1] Test that `map()` on a path that is neither a nifti-zarr store nor a recognizable OME-Zarr store raises nitorch's existing no-matching-reader error, in `nitorch/io/tests/test_niftizarr.py` (FR-005, SC-004, quickstart Scenario 3).
+- [X] T014 [P] [US1] Regression test that loading existing NIfTI/MGH/TIFF files through `map()`/`load()` is unchanged, in `nitorch/io/tests/test_niftizarr.py` (FR-006).
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Run T011-T014, confirm they pass, and manually walk through quickstart.md Scenarios 1, 3, and 3c.
+- [X] T015 [US1] Run T011-T014, confirm they pass, and manually walk through quickstart.md Scenarios 1, 3, and 3c.
 
 **Checkpoint**: User Story 1 is fully functional and independently testable — this is the MVP.
 
@@ -97,15 +97,15 @@ Acceptance Scenario 1).
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T016 [P] [US2] Test that `.as_dask()` returns an uncomputed `dask.array.Array`, in `nitorch/io/tests/test_niftizarr.py` (contracts §2).
-- [ ] T017 [P] [US2] Test that slicing the dask array before `.compute()` only reads the overlapping chunks (verifiable via a chunk-access counter/mock), succeeding for a store whose full size would exceed a small memory budget, in `nitorch/io/tests/test_niftizarr.py` (FR-004, SC-002, quickstart Scenario 2).
-- [ ] T018 [P] [US2] Test that `.data()`/`.fdata()` still behave correctly once implemented via computing the dask array, in `nitorch/io/tests/test_niftizarr.py` (FR-006 regression guard for this format).
+- [X] T016 [P] [US2] Test that `.as_dask()` returns an uncomputed `dask.array.Array`, in `nitorch/io/tests/test_niftizarr.py` (contracts §2).
+- [X] T017 [P] [US2] Test that slicing the dask array before `.compute()` only reads the overlapping chunks (verifiable via a chunk-access counter/mock), succeeding for a store whose full size would exceed a small memory budget, in `nitorch/io/tests/test_niftizarr.py` (FR-004, SC-002, quickstart Scenario 2).
+- [X] T018 [P] [US2] Test that `.data()`/`.fdata()` still behave correctly once implemented via computing the dask array, in `nitorch/io/tests/test_niftizarr.py` (FR-006 regression guard for this format).
 
 ### Implementation for User Story 2
 
-- [ ] T019 [US2] Implement `.as_dask()` on `NiftiZarrArray` in `array.py`, wrapping the store's zarr array as a `dask.array.Array` via `dask.array.from_zarr` (FR-004, research.md §4). Depends on Foundational T003.
-- [ ] T020 [US2] Update `.data()`/`.fdata()` (T010) to compute the dask array from T019 instead of duplicating the zarr-opening logic, keeping a single source of truth for array access. Depends on T019.
-- [ ] T021 [US2] Run T016-T018, confirm they pass, and manually walk through quickstart.md Scenario 2.
+- [X] T019 [US2] Implement `.as_dask()` on `NiftiZarrArray` in `array.py`, wrapping the store's zarr array as a `dask.array.Array` via `dask.array.from_zarr` (FR-004, research.md §4). Depends on Foundational T003.
+- [X] T020 [US2] Update `.data()`/`.fdata()` (T010) to compute the dask array from T019 instead of duplicating the zarr-opening logic, keeping a single source of truth for array access. Depends on T019.
+- [X] T021 [US2] Run T016-T018, confirm they pass, and manually walk through quickstart.md Scenario 2.
 
 **Checkpoint**: User Story 2 is independently testable.
 
@@ -123,16 +123,16 @@ store's own native data for that level (spec.md US3 Acceptance Scenario 1).
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T022 [P] [US3] Test that a multiscale `NiftiZarrArray`'s level-fetch capability returns a new `NiftiZarrArray` bound to the requested native level's array path, sharing the same header, in `nitorch/io/tests/test_niftizarr.py` (FR-007, contracts §3, quickstart Scenario 4).
-- [ ] T023 [P] [US3] Test that `ImagePyramid` built from a multiscale nifti-zarr source uses the store's native data — compared directly against the store's own per-level arrays — for every requested level the store provides, rather than downsampling, in `nitorch/tests/test_niftizarr_registration.py` (FR-008, SC-005, quickstart Scenario 5).
-- [ ] T024 [P] [US3] Test that `ImagePyramid` falls back to nitorch's existing downsampling, applied from the store's coarsest native level, for any requested level beyond what the store natively provides, in `nitorch/tests/test_niftizarr_registration.py` (FR-008 fallback clause).
-- [ ] T025 [P] [US3] Regression test that `ImagePyramid` built from a non-nifti-zarr source (e.g. plain NIfTI) still downsamples exactly as before, in `nitorch/tests/test_niftizarr_registration.py` (FR-006 regression guard).
+- [X] T022 [P] [US3] Test that a multiscale `NiftiZarrArray`'s level-fetch capability returns a new `NiftiZarrArray` bound to the requested native level's array path, sharing the same header, in `nitorch/io/tests/test_niftizarr.py` (FR-007, contracts §3, quickstart Scenario 4).
+- [X] T023 [P] [US3] Test that `ImagePyramid` built from a multiscale nifti-zarr source uses the store's native data — compared directly against the store's own per-level arrays — for every requested level the store provides, rather than downsampling, in `nitorch/tests/test_niftizarr_registration.py` (FR-008, SC-005, quickstart Scenario 5).
+- [X] T024 [P] [US3] Test that `ImagePyramid` falls back to nitorch's existing downsampling, applied from the store's coarsest native level, for any requested level beyond what the store natively provides, in `nitorch/tests/test_niftizarr_registration.py` (FR-008 fallback clause).
+- [X] T025 [P] [US3] Regression test that `ImagePyramid` built from a non-nifti-zarr source (e.g. plain NIfTI) still downsamples exactly as before, in `nitorch/tests/test_niftizarr_registration.py` (FR-006 regression guard).
 
 ### Implementation for User Story 3
 
-- [ ] T026 [US3] Parse OME-Zarr multiscale metadata (level array paths + scale factors) in `array.py`/`ome_header.py` and implement the level-fetch capability on `NiftiZarrArray`: number of native levels, plus a method constructing a `NiftiZarrArray` bound to a specific level's array path and sharing the same header (FR-007, research.md §5). Depends on Foundational T003, T007.
-- [ ] T027 [US3] Add the native-level-fetch capability check to `ImagePyramid`'s level-construction loop in `nitorch/tools/registration/objects.py`: when the source exposes T026's capability, fetch each requested native level directly instead of downsampling; fall back to the existing downsampling from the coarsest native level for levels beyond what's available. Use a capability (`hasattr`-style) check, not an `isinstance` check against `NiftiZarrArray` (FR-008, research.md §6). Depends on T026.
-- [ ] T028 [US3] Run T022-T025, confirm they pass, and manually walk through quickstart.md Scenario 5.
+- [X] T026 [US3] Parse OME-Zarr multiscale metadata (level array paths + scale factors) in `array.py`/`ome_header.py` and implement the level-fetch capability on `NiftiZarrArray`: number of native levels, plus a method constructing a `NiftiZarrArray` bound to a specific level's array path and sharing the same header (FR-007, research.md §5). Depends on Foundational T003, T007.
+- [X] T027 [US3] Add the native-level-fetch capability check to `ImagePyramid`'s level-construction loop in `nitorch/tools/registration/objects.py`: when the source exposes T026's capability, fetch each requested native level directly instead of downsampling; fall back to the existing downsampling from the coarsest native level for levels beyond what's available. Use a capability (`hasattr`-style) check, not an `isinstance` check against `NiftiZarrArray` (FR-008, research.md §6). Depends on T026.
+- [X] T028 [US3] Run T022-T025, confirm they pass, and manually walk through quickstart.md Scenario 5.
 
 **Checkpoint**: All three user stories are independently functional and tested.
 
