@@ -30,7 +30,7 @@ Structure, not placeholders.
 
 **Purpose**: Create the new package skeleton and dependency extra this feature adds.
 
-- [ ] T001 Create the `nitorch/io/volumes/niftizarr/` package skeleton: `__init__.py`, `array.py`, `metadata.py`, and `ome_header.py` as empty/stub modules.
+- [ ] T001 Create the `nitorch/io/volumes/zarr/` package skeleton: `__init__.py`, `array.py`, `metadata.py`, and `ome_header.py` as empty/stub modules.
 - [ ] T002 [P] Add a new `zarr` extra (`zarr`, `dask`) to `nitorch/../setup.cfg`'s `[options.extras_require]`, and include it in the aggregate `io`/`all` extras, mirroring the existing `nibabel`/`tiff` extras (research.md §4).
 
 **Checkpoint**: Package structure and dependency extra exist; no existing extra modified.
@@ -44,11 +44,11 @@ exposes its header metadata — embedded or OME-derived — that every user stor
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T003 Implement store-opening and metadata detection in `nitorch/io/volumes/niftizarr/array.py`: open the Zarr group/array at a given path and parse its root/group-level attributes to locate (a) an embedded NIfTI header attribute if present, and (b) OME multiscale metadata (`multiscales`/`ome` key) if present (research.md §1).
+- [ ] T003 Implement store-opening and metadata detection in `nitorch/io/volumes/zarr/array.py`: open the Zarr group/array at a given path and parse its root/group-level attributes to locate (a) an embedded NIfTI header attribute if present, and (b) OME multiscale metadata (`multiscales`/`ome` key) if present (research.md §1).
 - [ ] T004 Implement `NiftiZarrArray.possible_extensions()` (`('.zarr',)`) and `.sniff()` in `array.py`, using T003: recognized if either an embedded NIfTI header or OME multiscale metadata is present (FR-002, research.md §1). Depends on T003.
-- [ ] T005 Register `NiftiZarrArray` into `nitorch/io/volumes/readers.py::reader_classes` in `nitorch/io/volumes/niftizarr/__init__.py`, mirroring how `babel`/`tiff` self-register (research.md §1).
-- [ ] T006 [P] Implement embedded-NIfTI-header metadata population in `nitorch/io/volumes/niftizarr/metadata.py`, reusing `babel/metadata.py::header_to_metadata` on the header embedded in the store (FR-003, research.md §2).
-- [ ] T007 [P] Implement the OME-Zarr-derived header fallback in `nitorch/io/volumes/niftizarr/ome_header.py`: per-axis scale/translation from `coordinateTransformations` to an affine (unit-converted to mm/s), OME axis names mapped to the standard shape ordering, and `Nifti1Header`/`Nifti2Header` selection based on whether any dimension exceeds 2^15 — mirroring `nifti-zarr-py`'s `default_nifti_header()`/`_ome2affine()` exactly (FR-009, research.md §3).
+- [ ] T005 Register `NiftiZarrArray` into `nitorch/io/volumes/readers.py::reader_classes` in `nitorch/io/volumes/zarr/__init__.py`, mirroring how `babel`/`tiff` self-register (research.md §1).
+- [ ] T006 [P] Implement embedded-NIfTI-header metadata population in `nitorch/io/volumes/zarr/metadata.py`, reusing `babel/metadata.py::header_to_metadata` on the header embedded in the store (FR-003, research.md §2).
+- [ ] T007 [P] Implement the OME-Zarr-derived header fallback in `nitorch/io/volumes/zarr/ome_header.py`: per-axis scale/translation from `coordinateTransformations` to an affine (unit-converted to mm/s), OME axis names mapped to the standard shape ordering, and `Nifti1Header`/`Nifti2Header` selection based on whether any dimension exceeds 2^15 — mirroring `nifti-zarr-py`'s `default_nifti_header()`/`_ome2affine()` exactly (FR-009, research.md §3).
 - [ ] T008 Wire T006/T007 into `NiftiZarrArray.__init__`/`affine`/`voxel_size`/`dtype` in `array.py`: use the embedded header (T006) when present, otherwise the OME-derived header (T007) (FR-003, FR-009). Depends on T003, T006, T007.
 - [ ] T009 Implement `FailedReadError` raising in `NiftiZarrArray.__init__` (`array.py`) when neither an embedded NIfTI header nor recognizable OME multiscale metadata is found (FR-005, data-model.md validation rules). Depends on T003.
 - [ ] T010 Implement `.data()`/`.fdata()` on `NiftiZarrArray` in `array.py`, eagerly computing the store's zarr array so it fulfills the existing `MappedArray` contract and is usable anywhere any other backend already is (FR-006). Depends on T003.
@@ -142,7 +142,7 @@ store's own native data for that level (spec.md US3 Acceptance Scenario 1).
 
 **Purpose**: Documentation and final regression validation across all stories.
 
-- [ ] T029 [P] Add/verify docstrings for `NiftiZarrArray`, `.as_dask()`, and the level-fetch method in `nitorch/io/volumes/niftizarr/array.py`, describing shapes/dtypes/behavior per Constitution Principle I.
+- [ ] T029 [P] Add/verify docstrings for `NiftiZarrArray`, `.as_dask()`, and the level-fetch method in `nitorch/io/volumes/zarr/array.py`, describing shapes/dtypes/behavior per Constitution Principle I.
 - [ ] T030 [P] Document the new `zarr` extra alongside the existing `nibabel`/`tiff` extras documentation (README or equivalent install docs).
 - [ ] T031 Walk through all of quickstart.md's scenarios (1, 2, 3, 3b, 3c, 4, 5, 6) end-to-end as a final combined validation.
 - [ ] T032 Run the full existing nitorch test suite (`nitorch/tests/`, `nitorch/io/tests/`) and confirm zero new failures, as the final check for FR-006.
@@ -200,8 +200,8 @@ store's own native data for that level (spec.md US3 Acceptance Scenario 1).
 
 ```bash
 # Launch the two independent header-derivation tasks together (after T003):
-Task: "Embedded-NIfTI-header metadata population in nitorch/io/volumes/niftizarr/metadata.py"
-Task: "OME-Zarr-derived header fallback in nitorch/io/volumes/niftizarr/ome_header.py"
+Task: "Embedded-NIfTI-header metadata population in nitorch/io/volumes/zarr/metadata.py"
+Task: "OME-Zarr-derived header fallback in nitorch/io/volumes/zarr/ome_header.py"
 ```
 
 ## Implementation Strategy

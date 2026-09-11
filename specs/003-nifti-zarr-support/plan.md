@@ -58,7 +58,7 @@ Assumptions); no change to any existing format's behavior through the same loadi
 entry points (FR-006); no change to `ImagePyramid`'s public shape, only to how each
 level's data is obtained internally (data-model.md).
 
-**Scale/Scope**: One new backend package (`nitorch/io/volumes/niftizarr/`), one
+**Scale/Scope**: One new backend package (`nitorch/io/volumes/zarr/`), one
 extension point inside `ImagePyramid`'s existing level-construction loop, and a new
 optional dependency extra. Out of scope (spec.md Assumptions): remote/cloud stores,
 writing/saving to nifti-zarr, and any resolution-level auto-selection beyond explicit
@@ -113,8 +113,8 @@ nitorch/
 │   │   └── ome_header.py             # NEW: derives header metadata from OME-Zarr
 │   │                                  # coordinateTransformations/axes/units when no
 │   │                                  # embedded NIfTI header is present (research.md §3)
-│   └── readers.py                    # MODIFIED: import niftizarr so it self-registers
-│                                      # (mirrors how babel/tiff already register)
+│   └── readers.py                    # MODIFIED: import the new zarr backend package
+│                                      # so it self-registers (mirrors how babel/tiff already register)
 ├── tools/registration/
 │   └── objects.py                    # MODIFIED: ImagePyramid's level-construction loop
 │                                      # gains the native-level-fetch check (research.md §6)

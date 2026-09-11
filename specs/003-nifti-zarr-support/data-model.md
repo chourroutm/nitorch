@@ -6,7 +6,7 @@ already mirrors (`nitorch/io/volumes/babel/`).
 
 ## NiftiZarrArray (new `MappedArray` subclass)
 
-Lives in a new `nitorch/io/volumes/niftizarr/` package, mirroring the existing
+Lives in a new `nitorch/io/volumes/zarr/` package, mirroring the existing
 `babel`/`tiff` backend packages.
 
 | Aspect | Value |
