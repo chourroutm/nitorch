@@ -139,3 +139,48 @@ def test_make_image_anatomix_bad_path_raises_descriptive_error(tmp_path):
     bad_path = str(tmp_path / 'does_not_exist.pth')
     with pytest.raises(AnatomixWeightsError, match='does not exist'):
         make_image(dat, anatomix=bad_path)
+
+
+# --- mind + anatomix used jointly ---------------------------------------
+#
+# NOTE: these tests pass bound='dct2' explicitly. make_image()'s default
+# bound='zero' hits a pre-existing, unrelated bug (nitorch.core.bounds has
+# no 'zero'/'zero_' implementation, so utils.roll(..., bound='zero') raises
+# AttributeError) that already breaks *any* mind= usage on this branch,
+# independent of anatomix -- confirmed via git stash against a commit before
+# this feature. Out of scope for the mind/anatomix interaction fixed here.
+
+def test_make_image_mind_and_anatomix_concatenate_channels(fake_checkpoint):
+    # Both extractors must read the *original* raw intensities (never each
+    # other's output) and their feature channels must be concatenated, not
+    # one silently overwriting the other (github.com/balbasty/nitorch/pull/86
+    # review comment).
+    dat = torch.rand(1, 16, 16, 16)
+    anatomix_cfg = dict(weights_path=fake_checkpoint, **ARCH)
+
+    mind_only = make_image(dat.clone(), mind=True, bound='dct2')[0]
+    anatomix_only = make_image(dat.clone(), anatomix=anatomix_cfg, bound='dct2')[0]
+    joint = make_image(dat.clone(), mind=True, anatomix=anatomix_cfg, bound='dct2')[0]
+
+    mind_channels = mind_only.dat.shape[0]
+    anatomix_channels = anatomix_only.dat.shape[0]
+    assert joint.dat.shape[0] == mind_channels + anatomix_channels
+    assert joint.dat.shape[1:] == dat.shape[1:]
+    assert torch.equal(joint.dat[:mind_channels], mind_only.dat)
+    assert torch.equal(joint.dat[mind_channels:], anatomix_only.dat)
+    assert torch.equal(joint.preview, dat)
+
+
+def test_make_image_mind_and_anatomix_registration_end_to_end(fake_checkpoint):
+    anatomix_cfg = dict(weights_path=fake_checkpoint, **ARCH)
+    fixed_dat = torch.rand(1, 16, 16, 16)
+    moving_dat = torch.rand(1, 16, 16, 16)
+    fixed_img = make_image(fixed_dat, mind=True, anatomix=anatomix_cfg, bound='dct2')[0]
+    moving_img = make_image(moving_dat, mind=True, anatomix=anatomix_cfg, bound='dct2')[0]
+
+    sim = Similarity(make_loss('lcc'), moving_img, fixed_img)
+    affine, nonlin = run(sim, pyramid=False, nonlin=False, progressive=False,
+                         affine='rigid', max_iter=2, verbose=False)
+
+    assert affine is not None
+    assert affine.exp(cache_result=True).shape == (4, 4)

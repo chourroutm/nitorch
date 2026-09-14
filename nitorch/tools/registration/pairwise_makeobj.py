@@ -2,6 +2,7 @@ __all__ = ['make_image', 'make_loss',
            'make_affine', 'make_affine_2d', 'make_affine_optim',
            'make_nonlin', 'make_nonlin_2d', 'make_nonlin_optim']
 
+import torch
 from nitorch import spatial, io
 from nitorch.core.py import make_list
 from nitorch.core import utils
@@ -68,6 +69,9 @@ def make_image(dat, mask=None, affine=None,
         `dict` gives full control (`weights_path`, `auto_download`, and
         architecture overrides `num_downs`/`ngf`/`output_nc`/`norm`/
         `interp`/`pooling`). Disabled by default (`None`).
+        `mind` and `anatomix` may be enabled together: both are computed
+        from the same raw intensities (never from each other's output) and
+        their feature channels are concatenated.
     bound : [sequence of] str
         Boundary conditions
     extrapolate : bool, default=True
@@ -106,27 +110,35 @@ def make_image(dat, mask=None, affine=None,
 
     mind = [] if mind is False else [1, 2] if mind is True else mind
     mind = make_list(mind or [])
-    if mind:
-        fwhm, radius = make_list(mind, 2, default=2)
-        for level in image:
-            level.preview = level.dat
-            level.dat = spatial.rmind(level.dat, dim=dim,
-                                     radius=int(radius), fwhm=fwhm,
-                                     bound=level.bound)
-            level.dat = utils.movedim(level.dat, -1, 0)
-            level.dat = level.dat.reshape([-1, *level.shape])
-
     anatomix = _normalize_anatomix_config(anatomix)
-    if anatomix is not None:
-        extractor = AnatomixFeatureExtractor(**anatomix)
+
+    if mind or anatomix is not None:
+        # Both feature extractors read the *original* per-level intensities
+        # (never each other's output) so they can be requested jointly: their
+        # feature channels are concatenated into level.dat rather than one
+        # silently overwriting the other's input.
+        if anatomix is not None:
+            extractor = AnatomixFeatureExtractor(**anatomix)
         for level in image:
-            if level.dat.shape[0] != 1:
-                raise ValueError(
-                    f"anatomix expects a single-channel image, got "
-                    f"{level.dat.shape[0]} channels"
-                )
-            level.preview = level.dat
-            level.dat = extractor(level.dat[None])[0]
+            raw = level.dat
+            level.preview = raw
+            feats = []
+            if mind:
+                fwhm, radius = make_list(mind, 2, default=2)
+                mind_feat = spatial.rmind(raw, dim=dim,
+                                          radius=int(radius), fwhm=fwhm,
+                                          bound=level.bound)
+                mind_feat = utils.movedim(mind_feat, -1, 0)
+                mind_feat = mind_feat.reshape([-1, *level.shape])
+                feats.append(mind_feat)
+            if anatomix is not None:
+                if raw.shape[0] != 1:
+                    raise ValueError(
+                        f"anatomix expects a single-channel image, got "
+                        f"{raw.shape[0]} channels"
+                    )
+                feats.append(extractor(raw[None])[0])
+            level.dat = feats[0] if len(feats) == 1 else torch.cat(feats, dim=0)
 
     if discretize:
         if soft:
